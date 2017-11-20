@@ -1,0 +1,136 @@
+#include <iostream>
+#include <opencv2\core\core.hpp>
+#include <opencv2\imgproc\imgproc.hpp>
+#include <opencv2\highgui\highgui.hpp>
+
+using namespace std;
+using namespace cv;
+
+void shachuan(Mat& source)
+{
+	
+
+	//imshow("source", source);
+	Mat inputImage, inputImagegray, outputImage, hsv, threshold_shachuan, canny, erodeImage, dilateImage, yuanshiImage;
+	source.copyTo(inputImage);
+	imshow("inputImage", inputImage);
+	inputImage.copyTo(yuanshiImage);
+	cvtColor(inputImage, inputImagegray, CV_BGR2GRAY);
+	imshow("inputImagegray", inputImagegray);
+
+	Mat result;
+	threshold(inputImagegray, result, 150, 255, THRESH_BINARY);
+	erode(result, result, Mat(8, 8, CV_8U, Scalar(1)));
+	Canny(result, result, 1, 350);		//提取边界
+	imshow("canny", result);
+
+
+	vector<vector<Point>> contours;
+	findContours(result, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);		//寻找连通域
+	vector<Point> maxContour;
+	int m = 0;
+	double maxArea = 0;
+	for (size_t i = 0; i < contours.size(); i++)		//找到最大连通域
+	{
+		double area = contourArea(contours[i]);
+		if (area > maxArea)
+		{
+			maxArea = area;
+			m = i;
+			maxContour = contours[i];
+		}
+	}
+	Rect maxRect = boundingRect(maxContour);		//找到最大连通域的边界
+	//将边界扩大
+	maxRect.x = maxRect.x - 20;
+	maxRect.y = maxRect.y - 20;
+	maxRect.width = maxRect.width + 40;
+	maxRect.height = maxRect.height + 40;
+
+	//rectangle(black,maxRect, Scalar(0));
+	Mat black(inputImagegray.size(), inputImagegray.type(), Scalar(0));
+	black = inputImage(maxRect);
+	imshow("result2", inputImage);
+
+
+	int i, j;
+	int high = black.rows;
+	int width = black.cols;
+	for (i = 0; i < high; ++i)
+	{
+		for (j = 0; j < width; ++j)
+		{
+			if ((black.at<Vec3b>(i, j)[0] < 100) || ((black.at<Vec3b>(i, j)[1] < 193) && (black.at<Vec3b>(i, j)[1] > 191)) || (black.at<Vec3b>(i, j)[2] < 100))
+			{
+				black.at<Vec3b>(i, j)[0] = 255;
+				black.at<Vec3b>(i, j)[1] = 0;
+				black.at<Vec3b>(i, j)[2] = 0;
+			}
+		}
+
+	}
+	//outputImage.convertTo(outputImage, CV_32F, 1.0 / 255, 0);
+	imshow("yansebianhuan", black);
+	/*Laplacian(outputImage, outputImage, CV_8U, 5);
+	imshow("lap", outputImage);*/
+	outputImage = black;
+	
+	Mat erodesize1(10, 10, CV_8U, Scalar(1));
+	erode(outputImage, outputImage, erodesize1);
+	imshow("output_erode", outputImage);
+	Mat dilatesize1(11, 11, CV_8U, Scalar(1));
+	dilate(outputImage, outputImage, dilatesize1);
+	erode(outputImage, outputImage, erodesize1);
+	imshow("output_dilate", outputImage);
+
+//GaussianBlur(outputImage, outputImage, Size(11, 11), 2.5);
+//	imshow("hsv3bgr_gaosi", outputImage);
+
+
+	cvtColor(outputImage, outputImage, CV_BGR2GRAY);
+	imshow("cvtcolor_or_laplacian", outputImage);
+
+	threshold(outputImage, threshold_shachuan, 138, 255, THRESH_BINARY);
+	imshow("shachuan_threshold", threshold_shachuan);
+
+
+	Mat dilatesize(4, 5, CV_8U, Scalar(1));
+	dilate(threshold_shachuan, dilateImage, dilatesize);
+	imshow("dilateImage", dilateImage);
+
+	Canny(inputImage, canny, 100, 300);
+	imshow("canny_shachuan", canny);
+
+
+	//vector<vector<Point>> contours;
+	findContours(canny, contours, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
+
+
+	double are;
+	//Rect maxRect;
+	for (int i = 0; i < contours.size(); ++i)		//选择合适的大小确定边界
+	{
+		are = contourArea(contours[i]);
+		if (are < 20000 && are > 200)
+		{
+			Rect rec = boundingRect(contours[i]);
+			rec.x = rec.x + maxRect.x;
+			rec.y = rec.y + maxRect.y;
+			rectangle(yuanshiImage, rec, (0, 255, 0));
+			//drawContours(yuanshiImage, contours, i, Scalar(0, 0, 255), 1, (maxRect.x, maxRect.y));
+		}
+	}
+	imshow("inputImage_shachuan", yuanshiImage);
+}
+
+int main()
+{
+	Mat inputImage = imread("E:\\BaiduNetdiskDownload\\8.tiff");
+	imshow("inputImage", inputImage);
+	shachuan(inputImage);
+
+
+	waitKey();
+	return 0;
+
+}
